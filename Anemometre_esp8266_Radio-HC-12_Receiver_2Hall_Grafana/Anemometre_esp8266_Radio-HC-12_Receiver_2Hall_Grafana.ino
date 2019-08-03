@@ -58,31 +58,31 @@ void ReceiveDataFromRadio() {
   while (HC12.available()) {      // If HC-12 has data
     acquis_data = HC12.read();
     chaine = chaine + acquis_data;
-
+//      Serial.println (chaine);           // debug
 /* message reçu de la forme 
 114 VENT
 937 EOLIENNE
 pour chaque ligne on fait :*/
  //   if (acquis_data == 10) {  //détection de fin de ligne : en ascii
     if (chaine.endsWith("\n")) {  //détection de fin de ligne : méthodes String
-//      Serial.println ("fin de ligne");   // debug
-//      Serial.println (chaine);           // debug
+ //     Serial.println ("fin de ligne");   // debug
 
-        if (chaine.endsWith("VENT\n")) {  //détection de fin de ligne méthodes String
+
+        if (chaine.endsWith("V\n")) {  //détection de fin de ligne méthodes String
 //          Serial.println ( "vent détecté");    // debug
           char resultat[chaine.length()+1];   // déclare une char "resultat" avec la longueur+1 de la String
           chaine.toCharArray(resultat, chaine.length()+1);  // convertis la String en chaine
           sscanf(resultat, "%d VENT", &vent); // parse le texte de la char, %d pour le texte avant le mot VENT, mis dans la variable vent
-          Serial.print("VENT:");
-          Serial.println(vent);            
+ //         Serial.print("VENT:");
+ //         Serial.println(vent);            
          }
          else {
 //          Serial.println ("vent non détecté ");    // debug
           char resultat[chaine.length()+1];
           chaine.toCharArray(resultat, chaine.length()+1);
           sscanf(resultat, "%d EOLIENNE", &eolienne);
-          Serial.print("EOLIENNE:");
-          Serial.println(eolienne);
+ //         Serial.print("EOLIENNE:");
+ //         Serial.println(eolienne);
           }
        
           chaine = "";  // vide la String
@@ -99,7 +99,7 @@ void SendDataToInfluxdbServer() {
   dbMeasurement rowDATA("Data");
   rowDATA.addField("VitesseVent", vent);
   rowDATA.addField("RotationEolienne", eolienne);
-//  Serial.println(influxdb.write(rowDATA) == DB_SUCCESS ? " - rowDATA write success" : " - Writing failed");
+ // Serial.println(influxdb.write(rowDATA) == DB_SUCCESS ? " - rowDATA write success" : " - Writing failed");
   influxdb.write(rowDATA);
 
   // Vide les données - Empty field object.
@@ -112,7 +112,7 @@ void SendDataToInfluxdbServer() {
 void loop() {
   ReceiveDataFromRadio();
 
-  if (compteur > 500) { // envoie la data toutes les 5 secondes (10 ms + 500)
+  if (compteur > 500) { // envoie la data toutes les 10 secondes (delay 10 x 500 = 5000 ms, et l'opération prend 5 secondes à transférer/écrire en base)
     SendDataToInfluxdbServer();  
     compteur = 1;
   }
