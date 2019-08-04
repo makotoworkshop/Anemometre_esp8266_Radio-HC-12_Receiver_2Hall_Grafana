@@ -90,6 +90,19 @@ pour chaque ligne on fait :*/
   }
 }
 
+void NoData () {    // Pour forcer la remise à zero au cas ou l'esp n'avait pas le temps de recevoir la data à la mise en veille de l'arduino emetteur
+  unsigned long dateCourante = millis();
+  if (!HC12.available()) {      // If HC-12 has no data
+    float duree = (dateCourante - dateDernierChangement);
+    if (duree > 2000) // Si aucune data depuis 1 seconde
+    {
+      vent = 0;
+      eolienne = 0;
+//      Serial.println("nodata");
+      dateDernierChangement = dateCourante;    
+    }
+  }
+}
 
 void SendDataToInfluxdbServer() {
   //Writing data with influxdb HTTP API: https://docs.influxdata.com/influxdb/v1.5/guides/writing_data/
@@ -111,8 +124,9 @@ void SendDataToInfluxdbServer() {
 /*************/
 void loop() {
   ReceiveDataFromRadio();
-
-  if (compteur > 500) { // envoie la data toutes les 10 secondes (delay 10 x 500 = 5000 ms, et l'opération prend 5 secondes à transférer/écrire en base)
+  NoData();
+  
+  if (compteur > 100) { // envoie la data toutes les 6 secondes (delay 10 x 100 = 1000 ms, et l'opération prend 5 secondes à transférer/écrire en base)
     SendDataToInfluxdbServer();  
     compteur = 1;
   }
