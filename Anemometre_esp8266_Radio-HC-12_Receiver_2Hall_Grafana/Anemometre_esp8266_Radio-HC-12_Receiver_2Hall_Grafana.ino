@@ -104,6 +104,8 @@ void NoData () {    // Pour forcer la remise à zero au cas ou l'esp n'avait pas
   }
 }
 
+
+
 void SendDataToInfluxdbServer() {
   //Writing data with influxdb HTTP API: https://docs.influxdata.com/influxdb/v1.5/guides/writing_data/
   //Querying Data: https://docs.influxdata.com/influxdb/v1.5/query_language/
@@ -112,7 +114,7 @@ void SendDataToInfluxdbServer() {
   dbMeasurement rowDATA("Data");
   rowDATA.addField("VitesseVent", vent);
   rowDATA.addField("RotationEolienne", eolienne);
- // Serial.println(influxdb.write(rowDATA) == DB_SUCCESS ? " - rowDATA write success" : " - Writing failed");
+//  Serial.println(influxdb.write(rowDATA) == DB_SUCCESS ? " - rowDATA write success" : " - Writing failed");
   influxdb.write(rowDATA);
 
   // Vide les données - Empty field object.
@@ -124,7 +126,7 @@ void SendDataToInfluxdbServer() {
 /*************/
 void loop() {
   ReceiveDataFromRadio();
-  NoData();
+//  NoData();
   
   if (compteur > 100) { // envoie la data toutes les 6 secondes (delay 10 x 100 = 1000 ms, et l'opération prend 5 secondes à transférer/écrire en base)
     SendDataToInfluxdbServer();  
