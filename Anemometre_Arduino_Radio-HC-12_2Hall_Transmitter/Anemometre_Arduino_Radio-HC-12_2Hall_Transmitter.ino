@@ -2,6 +2,9 @@
 IN : capteur à effet Hall Anémomètre est connecté à la pin 2 = int0
 IN : capteur à effet Hall Éolienne est connecté à la pin 3 = int1  
 OUT : HC-12 Radio Default Mode 9600bps
+Pour activer le mode d'économie d'énergie de l'arduino et du HC-12, décommenter les lignes :
+// ModeVeille();
+// Reveil();
 */
     
 #include <SoftwareSerial.h>
@@ -21,7 +24,7 @@ unsigned long dateDernierChangementKMH = 0;
 float intervalleKMH = 0;
 float intervalleRPM = 0;
 char MessageVent[] = " V\n"; // message to be sent; '\n' is a forced terminator char
-char MessageTest[] = " E\n"; // message to be sent; '\n' is a forced terminator char
+char MessageEol[] = " E\n"; // message to be sent; '\n' is a forced terminator char
 String chaine;
 int rotaAnemo = 0;
 int rotaEol = 0;
@@ -33,8 +36,9 @@ int StatusVeille = 0;
 /*********/  
 void setup() {
   HC12.begin(9600);               // Serial port to HC12
+ //   HC12.begin(115200);               // Serial port to HC12
   // debug uniquement, penser à commenter toutes les lignes «Serial…» pour éviter les erreurs de valeur (calcul trop long pour l'interruption)
-//  Serial.begin(115200);             // Serial port to computer
+ // Serial.begin(9600);             // Serial port to computer
   // Pin capteurs
   attachInterrupt(digitalPinToInterrupt(2), rpm_vent, FALLING);  // le capteur à effet Hall Anémomètre est connecté à la pin 2 = int0
   attachInterrupt(digitalPinToInterrupt(3), rpm_eol, FALLING);  // le capteur à effet Hall Éolienne est connecté à la pin 3 = int1  
@@ -50,11 +54,9 @@ void setup() {
 void loop() {
   RemiseZeroVitVentKMH ();
   RemiseZeroVitEolRPM ();
-  
-  chaine = String(vitVentKMH) + MessageVent + String(vitEolRPM) + MessageTest;  // construction du message
+  chaine = String(vitVentKMH) + MessageVent + String(vitEolRPM) + MessageEol;  // construction du message
 //  Serial.println ( "chaine String : " +chaine );
- HC12.print(chaine); // send radio data
-
+  HC12.print(chaine); // send radio data
   delay(100);
 }
 
@@ -64,7 +66,7 @@ void loop() {
 
 void rpm_vent()   // appelée par l'interruption, Anémomètre vitesse du vent.
 { 
-  Reveil();   // Pour sortir du mode veille de l'Arduino et du HC-12
+ // Reveil();   // Pour sortir du mode veille de l'Arduino et du HC-12
   unsigned long dateCourante = millis();
   intervalleKMH = (dateCourante - dateDernierChangementVent);
 //  Serial.print ( "intervalle en s : " );
@@ -98,41 +100,46 @@ void rpm_eol()    // appelée par l'interruption, Tachymétre rotation éolienne
   rotaEol = 1;
 }
 
-
 void RemiseZeroVitVentKMH ()
 {
   unsigned long dateCouranteKMH = millis();
   if (rotaAnemo == 1 ){   // teste si l'Anémomètre tourne
-//    Serial.println ( "Anémo tourne ");
-    rotaAnemo = 0;
+ //   Serial.println ( "Anémo tourne ");
+    float dureeKMH = (dateCouranteKMH - dateDernierChangementKMH);
+    if (dureeKMH > 10000) {
+      rotaAnemo = 0;
+      dateDernierChangementKMH = dateCouranteKMH; 
+    }
   }
   else    // Si ça ne tourne plus (valeur plus mise à jour)
   {  
     float dureeKMH = (dateCouranteKMH - dateDernierChangementKMH);
-//    if (dureeKMH > 10000) // Si ça ne tourne plus depuis 10 secondes
-    if (dureeKMH > 16000) // Si ça ne tourne plus depuis 16 secondes, délai un peu augmenté vis à vis du mode veille.
+    if (dureeKMH > 6000) // Si ça ne tourne plus depuis 6 secondes
     {
-//      Serial.print ( "dureeKMH : " );
-//      Serial.println ( dureeKMH ); // affiche les rpm  
+ //     Serial.print ( "dureeKMH : " );
+  //    Serial.println ( dureeKMH ); // affiche les rpm  
       vitVentKMH = 0;  // Remsise à zero !
       dateDernierChangementKMH = dateCouranteKMH;   
-      ModeVeille(); // Comme ça ne tourne plus, passer l'Arduino en veille
+  //    ModeVeille(); // Comme ça ne tourne plus, passer l'Arduino en veille
     }
   }
 }
-
 
 void RemiseZeroVitEolRPM ()
 {
   unsigned long dateCouranteRPM = millis();
   if (rotaEol == 1 ){ // teste si l'éolienne tourne
 //    Serial.println ( "Éolienne tourne ");
-    rotaEol = 0;
+    float dureeRPM = (dateCouranteRPM - dateDernierChangementRPM);
+    if (dureeRPM > 10000) {
+      rotaEol = 0;
+      dateDernierChangementRPM = dateCouranteRPM;
+    }
   }
   else    // Si ça ne tourne plus (valeur plus mise à jour)
   {  
     float dureeRPM = (dateCouranteRPM - dateDernierChangementRPM);
-    if (dureeRPM > 650000) // Si ça ne tourne plus depuis 65 secondes (soit moins de 1 rpm)
+    if (dureeRPM > 6000) // Si ça ne tourne plus depuis 6 secondes
     {
 //      Serial.print ( "dureeRPM : " );
 //      Serial.println ( dureeRPM ); // affiche les rpm  
@@ -142,25 +149,26 @@ void RemiseZeroVitEolRPM ()
   }
 }
 
-
 void ModeVeille(){    // économie d'énergie
+       //     Serial.println ( "MODE VEILLE ACTIF " );
   StatusVeille = 1;
   detachInterrupt(digitalPinToInterrupt(2));  // désactiver l'interruption pour laisser le temps à la fonction de s'exécuter
 //  digitalWrite(LED_BUILTIN,LOW);    //turning LED off
   vitEolRPM = 0;  // À commenter selon le cas : Remsise à zero aussi de la rotation éolienne, car elle ne peut plus tourner si l'anémométre ne tourne plus, étant donné que le générateur freine beaucoup trop sa rotation inertielle. Et donc si l'arduino est déjà en veille, impossible de remttre à zero la rotation éolienne.
-  chaine = String(vitVentKMH) + MessageVent + String(vitEolRPM) + MessageTest;
+  chaine = String(vitVentKMH) + MessageVent + String(vitEolRPM) + MessageEol;
   HC12.print(chaine);   // pour envoyer la derniere valeur zero avant mise en veille.
   delay(100); // laisser le temps à la data d'être envoyée.
   digitalWrite(ATpin, LOW); // HC-12 en normal AT.
   delay(100); // laisser le temps au HC-12 de switcher de mode.
-  HC12.print("AT+SLEEP"); // passe le HC-12 en mode veille. (économie d'énergie)
+  HC12.print("AT+SLEEP"); // passe le HC-12 en mode veille. (économie d'énergie)
   delay(100); // laisser le temps au HC-12 de switcher de mode.
   digitalWrite(ATpin, HIGH); // HC-12 en normal mode
   sleep_enable(); //Enabling sleep mode
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);  //Setting the Arduino full sleep mode
   sleep_cpu();  //activating sleep mode
+
   attachInterrupt(digitalPinToInterrupt(2), rpm_vent, FALLING);  // le capteur à effet Hall Anémomètre est connecté à la pin 2 = int0
-  }
+}
 
   
 void Reveil(){
@@ -175,6 +183,8 @@ void Reveil(){
     delay(100);
     digitalWrite(ATpin, HIGH); // HC-12 en normal mode
     StatusVeille = 0;
+      //      Serial.println ( "REVEIL " );
+
     attachInterrupt(digitalPinToInterrupt(2), rpm_vent, FALLING);  // le capteur à effet Hall Anémomètre est connecté à la pin 2 = int0
   }
 }
